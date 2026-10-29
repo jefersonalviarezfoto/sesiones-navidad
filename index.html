@@ -157,7 +157,8 @@ button{font:inherit;color:inherit}
 .bar .info b{display:block;font-family:var(--f-display);font-weight:700;color:var(--pine);font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar .info span{color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar a{flex:none;text-decoration:none;border:1.5px solid var(--gold);border-radius:99px!important;background:var(--crimson);color:var(--crimson-ink);font-weight:700;border-radius:10px;padding:10px 14px;font-size:14px}
-footer{text-align:center;color:var(--muted);font-size:13px}
+footer{text-align:center;color:var(--muted);font-size:13px;line-height:1.9}
+footer a,.check a{color:var(--crimson);font-weight:600}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 html{scroll-behavior:smooth}
 </style>
@@ -253,20 +254,19 @@ html{scroll-behavior:smooth}
           <p class="fine" id="cardHow">Te enviamos por WhatsApp un link de pago seguro por este monto. Lo pagas con tarjeta o Apple Pay desde tu teléfono, sin compartir los datos de tu tarjeta por mensaje.</p>
         </div>
       </div>
-      <label class="check"><input type="checkbox" id="paid"> <span id="paidText"></span></label>
+      <label class="check"><input type="checkbox" id="paid"> <span><span id="paidText"></span> Acepto los <a href="/terminos" target="_blank" rel="noopener">Términos y Condiciones</a> y la <a href="/privacidad" target="_blank" rel="noopener">Política de Privacidad</a>.</span></label>
       <a class="cta" id="wa" href="#" target="_blank" rel="noopener" aria-disabled="true">Confirmar reserva por WhatsApp</a>
       <p class="fine" id="waHelp"></p>
       <div class="done" id="done" hidden><strong>¡Listo! Tu mensaje está preparado.</strong><span>Tu fecha queda apartada en cuanto confirmemos el depósito. Te respondemos el mismo día.</span></div>
     </div>
   </section>
 
-  <footer><b>Alca Producciones</b> · 786 278 7684 · alcaproducciones.com</footer>
+  <footer><b>Alca Producciones</b> · 786 278 7684 · alcaproducciones.com<br><a href="/terminos">Términos y Condiciones</a> · <a href="/privacidad">Política de Privacidad</a> · <a href="/cancelaciones">Cancelaciones y Reembolsos</a><br>© 2026 Alca Producciones. Todos los derechos reservados.</footer>
 </div>
 
 <div class="bar" id="bar" hidden>
   <div class="bar-in">
     <div class="info"><b id="barPkg"></b><span id="barWhen"></span></div>
-    <a href="#s4" id="barGo">Reservar · $50</a>
   </div>
 </div>
 
@@ -483,8 +483,6 @@ function update(){
   if(p){
     $("#barPkg").textContent=p.name+" · "+money(p.price);
     $("#barWhen").textContent= state.date ? niceDate(state.date)+(state.time?" · "+state.time:"") : "Escoge fecha y hora";
-    $("#barGo").href = !haveWhen ? "#s2" : (ready ? "#s4" : "#s3");
-    $("#barGo").textContent = !haveWhen ? "Escoger fecha" : (ready ? "Apartar · $50" : "Completar datos");
   }
 }
 
