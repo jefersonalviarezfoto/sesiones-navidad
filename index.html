@@ -117,6 +117,7 @@ button{font:inherit;color:inherit}
 .reqnote{font-size:13px;color:var(--muted)}
 .field input[aria-invalid="true"],.field select[aria-invalid="true"]{border-color:var(--crimson);box-shadow:0 0 0 3px rgba(139,20,29,.12)}
 .field .msg{font-size:12.5px;color:var(--crimson);min-height:0}
+.proof{display:flex;flex-direction:column;gap:10px;border:1px dashed var(--gold);border-radius:14px;padding:14px 16px}
 .err{color:var(--crimson);font-size:13px;min-height:1em}
 
 /* deposit */
@@ -261,6 +262,14 @@ html{scroll-behavior:smooth}
           <a class="cardpay" id="cardpay" href="#" target="_blank" rel="noopener" hidden>Pagar con tarjeta</a>
           <p class="fine" id="cardHow">Te enviamos por WhatsApp un link de pago seguro por este monto. Lo pagas con tarjeta o Apple Pay desde tu teléfono, sin compartir los datos de tu tarjeta por mensaje.</p>
         </div>
+      </div>
+      <div class="proof" id="proof">
+        <div class="sub">Comprobante de pago</div>
+        <div class="grid2">
+          <div class="field"><label for="fref">Número de confirmación del pago<span class="req">*</span></label><input id="fref" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej. 4KX92M7Q1B"><span class="msg" id="m-fref"></span></div>
+          <div class="field"><label for="fpayer">Nombre de quien pagó<span class="req">*</span></label><input id="fpayer" required autocomplete="off" placeholder="Como aparece en el banco"><span class="msg" id="m-fpayer"></span></div>
+        </div>
+        <p class="fine" id="refHelp" style="margin:0"></p>
       </div>
       <label class="check"><input type="checkbox" id="paid"> <span><span id="paidText"></span> Acepto los <a href="/terminos" target="_blank" rel="noopener">Términos y Condiciones</a> y la <a href="/privacidad" target="_blank" rel="noopener">Política de Privacidad</a>.</span></label>
       <a class="cta" id="wa" href="#" target="_blank" rel="noopener" aria-disabled="true">Confirmar reserva por WhatsApp</a>
@@ -463,12 +472,20 @@ function update(){
     ? (CONFIG.cardPaymentLink ? "Ya pagué el depósito de "+money2(cardTotal())+" con tarjeta y entiendo que es no reembolsable." : "Entiendo que el depósito de "+money2(cardTotal())+" es no reembolsable.")+" Puedo cambiar la fecha una vez avisando con 48 horas."
     : "Ya envié el depósito de $50.00 por Zelle y entiendo que es no reembolsable. Puedo cambiar la fecha una vez avisando con 48 horas.";
   $("#wa").textContent = card && !CONFIG.cardPaymentLink ? "Pedir link de pago por WhatsApp" : "Confirmar reserva por WhatsApp";
-  $("#waHelp").innerHTML = card
+  $("#waHelp").innerHTML = "<b>Verificamos cada pago en nuestra cuenta antes de confirmar. Las reservas sin pago verificado no se apartan.</b> " + (card
     ? (CONFIG.cardPaymentLink ? "Después de pagar, toca el botón y mándanos el mensaje con la captura del pago." : "Se abre WhatsApp con tu reserva escrita. Mándanos el mensaje y te respondemos con el link de pago. Tu fecha queda apartada cuando se complete el pago.")+" Si WhatsApp no abre, escríbenos al <b>786 278 7684</b>."
-    : "Se abre WhatsApp con tu reserva escrita. Mándanos el mensaje junto con la captura del Zelle y te confirmamos el cupo. Si WhatsApp no abre, escríbenos al <b>786 278 7684</b>.";
+    : "Se abre WhatsApp con tu reserva escrita. Mándanos el mensaje junto con la captura del Zelle y te confirmamos el cupo. Si WhatsApp no abre, escríbenos al <b>786 278 7684</b>.");
 
   // whatsapp
-  const paid=$("#paid").checked, wa=$("#wa");
+  const ref=$("#fref").value.trim().replace(/\s+/g,""), payer=$("#fpayer").value.trim();
+  const refOk=/^[A-Za-z0-9-]{6,}$/.test(ref) && /\d/.test(ref), payerOk=payer.split(/\s+/).filter(Boolean).length>=2;
+  const showRef=proofTouched.has("fref") && !refOk, showPayer=proofTouched.has("fpayer") && !payerOk;
+  $("#fref").setAttribute("aria-invalid",String(showRef)); $("#m-fref").textContent = showRef ? "Escribe el número de confirmación completo (letras y números)." : "";
+  $("#fpayer").setAttribute("aria-invalid",String(showPayer)); $("#m-fpayer").textContent = showPayer ? "Escribe nombre y apellido del titular." : "";
+  $("#refHelp").textContent = state.method==="card"
+    ? "Lo encuentras en el recibo de QuickBooks que te llega por correo después de pagar."
+    : "Lo encuentras en tu app del banco, en el detalle del Zelle enviado (confirmation number / número de transacción).";
+  const paid=$("#paid").checked && refOk && payerOk, wa=$("#wa");
   if(ready){
     const msg=[
       "Hola Alca Producciones, quiero reservar mi Sesión Familiar de Navidad 🎄",
@@ -485,8 +502,8 @@ function update(){
       f.notes?"Notas: "+f.notes:null,
       "",
       state.method==="card"
-        ? (CONFIG.cardPaymentLink ? "Ya pagué el depósito de "+money2(cardTotal())+" con tarjeta. Les mando la captura del pago." : "Quiero pagar el depósito con tarjeta: "+money2(cardTotal())+" ($"+CONFIG.deposit+" + "+CONFIG.cardFeePct+"%). Por favor envíenme el link de pago.")
-        : "Ya pagué el depósito de "+money2(CONFIG.deposit)+" por Zelle (concepto: "+concept+"). Les mando la captura."
+        ? (CONFIG.cardPaymentLink ? "Ya pagué el depósito de "+money2(cardTotal())+" con tarjeta. N.º de confirmación: "+ref.toUpperCase()+" · Pagó: "+payer+". Les mando la captura." : "Quiero pagar el depósito con tarjeta: "+money2(cardTotal())+" ($"+CONFIG.deposit+" + "+CONFIG.cardFeePct+"%). Por favor envíenme el link de pago.")
+        : "Ya pagué el depósito de "+money2(CONFIG.deposit)+" por Zelle (concepto: "+concept+"). N.º de confirmación: "+ref.toUpperCase()+" · Pagó: "+payer+". Les mando la captura."
     ].filter(x=>x!==null).join("\n");
     wa.href="https://wa.me/"+CONFIG.whatsapp+"?text="+encodeURIComponent(msg);
   } else wa.href="#";
@@ -515,6 +532,8 @@ $("#copyConcept").addEventListener("click",e=>copyText($("#concept").textContent
 $("#s4").addEventListener("pointerdown",()=>{ if($("#s4").classList.contains("locked")){ ["fname","fphone","femail","faddr","fcity","fzip"].forEach(id=>touched.add(id)); update(); } });
 $("#form").addEventListener("submit",e=>e.preventDefault());
 $("#paid").addEventListener("change",update);
+const proofTouched=new Set();
+["fref","fpayer"].forEach(id=>{ $("#"+id).addEventListener("input",update); $("#"+id).addEventListener("blur",()=>{proofTouched.add(id); update();}); });
 $("#wa").addEventListener("click",e=>{ if($("#wa").getAttribute("aria-disabled")==="true"){e.preventDefault();return;} $("#done").hidden=false; });
 
 const ct=cardTotal(), fee=Math.round((ct-CONFIG.deposit)*100)/100;
