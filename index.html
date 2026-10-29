@@ -141,7 +141,8 @@ button{font:inherit;color:inherit}
 .panel{display:flex;flex-direction:column;gap:10px}
 .feeline{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .copy{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:4px 10px;font-size:13px;font-weight:600}
-.cardpay{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-decoration:none;background:#9b1a29;color:#fff;border:2px solid var(--gold);border-radius:99px!important;font-family:var(--f-display);font-size:18px;line-height:1.2;font-weight:700;border-radius:10px;padding:11px 16px}
+.cardpay:disabled{opacity:.45;cursor:not-allowed}
+.cardpay{cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-decoration:none;background:#9b1a29;color:#fff;border:2px solid var(--gold);border-radius:99px!important;font-family:var(--f-display);font-size:18px;line-height:1.2;font-weight:700;border-radius:10px;padding:11px 16px}
 .check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
 .check input{margin-top:4px;width:18px;height:18px;accent-color:var(--crimson);flex:none}
 .cta{border:2px solid var(--gold)!important;font-family:var(--f-display);display:flex;justify-content:center;align-items:center;gap:8px;text-decoration:none;cursor:pointer;background:linear-gradient(180deg,var(--crimson),var(--crimson-deep));border-radius:99px!important;color:var(--crimson-ink);font-weight:700;font-size:17px;border-radius:12px;padding:15px 18px;width:100%}
@@ -188,6 +189,16 @@ html{scroll-behavior:smooth}
     <span><b>Resto:</b> se paga el día de la sesión</span>
     <span><b>Fechas:</b> todos los días hasta el 31 de diciembre</span>
   </div>
+
+  <section class="step" id="verified" hidden>
+    <div class="step-head"><span class="num">✓</span><h2 id="vTitle">Pago verificado</h2></div>
+    <div class="body">
+      <p id="vMsg" style="margin:0"></p>
+      <dl class="recap" id="vRecap"></dl>
+      <a class="cta" id="vWa" href="#" target="_blank" rel="noopener" hidden>Confirmar reserva por WhatsApp</a>
+      <p class="fine" id="vHelp" style="margin:0"></p>
+    </div>
+  </section>
 
   <section class="step" id="s1">
     <div class="step-head"><span class="num">1</span><h2>Escoge tu paquete</h2></div>
@@ -259,10 +270,13 @@ html{scroll-behavior:smooth}
         </div>
         <div class="panel" id="pCard" hidden>
           <div class="feeline" id="feeLine"></div>
-          <a class="cardpay" id="cardpay" href="#" target="_blank" rel="noopener" hidden>Pagar con tarjeta</a>
-          <p class="fine" id="cardHow">Te enviamos por WhatsApp un link de pago seguro por este monto. Lo pagas con tarjeta o Apple Pay desde tu teléfono, sin compartir los datos de tu tarjeta por mensaje.</p>
+          <label class="check"><input type="checkbox" id="cardTerms"> <span>Entiendo que el depósito de <b class="ctAmt">$51.75</b> no es reembolsable y que puedo cambiar la fecha una vez avisando con 48 horas. Acepto los <a href="/terminos" target="_blank" rel="noopener">Términos y Condiciones</a> y la <a href="/privacidad" target="_blank" rel="noopener">Política de Privacidad</a>.</span></label>
+          <button type="button" class="cardpay" id="stripeBtn" disabled>Pagar <span class="ctAmt">$51.75</span> con tarjeta</button>
+          <div class="err" id="stripeErr"></div>
+          <p class="fine" style="margin:0">Pago seguro con Stripe: tarjeta, Apple Pay o Google Pay. Al terminar vuelves a esta página con tu pago verificado y confirmas tu reserva por WhatsApp.</p>
         </div>
       </div>
+      <div id="zelleConfirm" style="display:contents">
       <div class="proof" id="proof">
         <div class="sub">Comprobante de pago</div>
         <div class="grid2">
@@ -274,6 +288,7 @@ html{scroll-behavior:smooth}
       <label class="check"><input type="checkbox" id="paid"> <span><span id="paidText"></span> Acepto los <a href="/terminos" target="_blank" rel="noopener">Términos y Condiciones</a> y la <a href="/privacidad" target="_blank" rel="noopener">Política de Privacidad</a>.</span></label>
       <a class="cta" id="wa" href="#" target="_blank" rel="noopener" aria-disabled="true">Confirmar reserva por WhatsApp</a>
       <p class="fine" id="waHelp"></p>
+      </div>
       <div class="done" id="done" hidden><strong>¡Listo! Tu mensaje está preparado.</strong><span>Tu fecha queda apartada en cuanto confirmemos el depósito. Te respondemos el mismo día.</span></div>
     </div>
   </section>
@@ -291,7 +306,7 @@ html{scroll-behavior:smooth}
 /* ===== CONFIGURACIÓN — edita aquí ===== */
 const CONFIG = {
   whatsapp: "17862787684",          // número que recibe las reservas
-  cardPaymentLink: "https://connect.intuit.com/pay/maralycabanmkt/scs-v1-cffd826e8d2a49b3b774e6df9131b2ac33a0b14f36244f659aa52919dcd973782f8437c825514b568cb94e8a7f5c797c-0?locale=EN_US&cta=paylinkbuybutton",              // pega aquí tu link de Square / Stripe / PayPal para $50 (vacío = se oculta)
+  checkoutUrl: "/api/checkout",     // pago con tarjeta por Stripe (servidor en Vercel)
   deposit: 50,
   travelFee: 75,                    // sesiones en casa a más de 10 millas de Miami
   zelleEmail: "pagosalcagroup@gmail.com",
@@ -468,13 +483,11 @@ function update(){
   const card = state.method==="card";
   document.querySelectorAll(".method[data-m]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===state.method)));
   $("#pZelle").hidden=card; $("#pCard").hidden=!card;
-  $("#paidText").textContent = card
-    ? (CONFIG.cardPaymentLink ? "Ya pagué el depósito de "+money2(cardTotal())+" con tarjeta y entiendo que es no reembolsable." : "Entiendo que el depósito de "+money2(cardTotal())+" es no reembolsable.")+" Puedo cambiar la fecha una vez avisando con 48 horas."
-    : "Ya envié el depósito de $50.00 por Zelle y entiendo que es no reembolsable. Puedo cambiar la fecha una vez avisando con 48 horas.";
-  $("#wa").textContent = card && !CONFIG.cardPaymentLink ? "Pedir link de pago por WhatsApp" : "Confirmar reserva por WhatsApp";
-  $("#waHelp").innerHTML = "<b>Verificamos cada pago en nuestra cuenta antes de confirmar. Las reservas sin pago verificado no se apartan.</b> " + (card
-    ? (CONFIG.cardPaymentLink ? "Después de pagar, toca el botón y mándanos el mensaje con la captura del pago." : "Se abre WhatsApp con tu reserva escrita. Mándanos el mensaje y te respondemos con el link de pago. Tu fecha queda apartada cuando se complete el pago.")+" Si WhatsApp no abre, escríbenos al <b>786 278 7684</b>."
-    : "Se abre WhatsApp con tu reserva escrita. Mándanos el mensaje junto con la captura del Zelle y te confirmamos el cupo. Si WhatsApp no abre, escríbenos al <b>786 278 7684</b>.");
+  $("#zelleConfirm").style.display = card ? "none" : "contents";
+  $("#stripeBtn").disabled = !(ready && $("#cardTerms").checked) || payBusy;
+  $("#paidText").textContent = "Ya envié el depósito de $50.00 por Zelle y entiendo que es no reembolsable. Puedo cambiar la fecha una vez avisando con 48 horas.";
+  $("#wa").textContent = "Confirmar reserva por WhatsApp";
+  $("#waHelp").innerHTML = "<b>Verificamos cada pago en nuestra cuenta antes de confirmar. Las reservas sin pago verificado no se apartan.</b> Se abre WhatsApp con tu reserva escrita. Mándanos el mensaje junto con la captura del Zelle y te confirmamos el cupo. Si WhatsApp no abre, escríbenos al <b>786 278 7684</b>.";
 
   // whatsapp
   const ref=$("#fref").value.trim().replace(/\s+/g,""), payer=$("#fpayer").value.trim();
@@ -482,9 +495,7 @@ function update(){
   const showRef=proofTouched.has("fref") && !refOk, showPayer=proofTouched.has("fpayer") && !payerOk;
   $("#fref").setAttribute("aria-invalid",String(showRef)); $("#m-fref").textContent = showRef ? "Escribe el número de confirmación completo (letras y números)." : "";
   $("#fpayer").setAttribute("aria-invalid",String(showPayer)); $("#m-fpayer").textContent = showPayer ? "Escribe nombre y apellido del titular." : "";
-  $("#refHelp").textContent = state.method==="card"
-    ? "Lo encuentras en el recibo de QuickBooks que te llega por correo después de pagar."
-    : "Lo encuentras en tu app del banco, en el detalle del Zelle enviado (confirmation number / número de transacción).";
+  $("#refHelp").textContent = "Lo encuentras en tu app del banco, en el detalle del Zelle enviado (confirmation number / número de transacción).";
   const paid=$("#paid").checked && refOk && payerOk, wa=$("#wa");
   if(ready){
     const msg=[
@@ -501,13 +512,11 @@ function update(){
       f.email?"Correo: "+f.email:null,
       f.notes?"Notas: "+f.notes:null,
       "",
-      state.method==="card"
-        ? (CONFIG.cardPaymentLink ? "Ya pagué el depósito de "+money2(cardTotal())+" con tarjeta. N.º de confirmación: "+ref.toUpperCase()+" · Pagó: "+payer+". Les mando la captura." : "Quiero pagar el depósito con tarjeta: "+money2(cardTotal())+" ($"+CONFIG.deposit+" + "+CONFIG.cardFeePct+"%). Por favor envíenme el link de pago.")
-        : "Ya pagué el depósito de "+money2(CONFIG.deposit)+" por Zelle (concepto: "+concept+"). N.º de confirmación: "+ref.toUpperCase()+" · Pagó: "+payer+". Les mando la captura."
+      "Ya pagué el depósito de "+money2(CONFIG.deposit)+" por Zelle (concepto: "+concept+"). N.º de confirmación: "+ref.toUpperCase()+" · Pagó: "+payer+". Les mando la captura."
     ].filter(x=>x!==null).join("\n");
     wa.href="https://wa.me/"+CONFIG.whatsapp+"?text="+encodeURIComponent(msg);
   } else wa.href="#";
-  wa.setAttribute("aria-disabled", String(!(ready&&paid)));
+  wa.setAttribute("aria-disabled", String(!(ready&&paid&&!card)));
 
   // bar
   const bar=$("#bar");
@@ -540,12 +549,87 @@ const ct=cardTotal(), fee=Math.round((ct-CONFIG.deposit)*100)/100;
 $("#amtZelle").textContent=money2(CONFIG.deposit); $("#zAmt").textContent=money2(CONFIG.deposit);
 $("#amtCard").textContent=money2(ct); $("#feeNote").textContent="Incluye "+CONFIG.cardFeePct+"% de procesamiento";
 $("#feeLine").textContent="Depósito "+money2(CONFIG.deposit)+" + recargo por tarjeta "+CONFIG.cardFeePct+"% ("+money2(fee)+") = "+money2(ct);
-if(CONFIG.cardPaymentLink){ const c=$("#cardpay"); c.href=CONFIG.cardPaymentLink; c.innerHTML="<span>Reservar ahora</span><small style=\"font-family:var(--f-body);font-weight:500;font-size:13px;opacity:.9\">Pagar "+money2(ct)+" con tarjeta en QuickBooks</small>"; c.hidden=false; $("#cardHow").textContent="Se abre el pago seguro en otra pestaña. Cuando termines, vuelve aquí para confirmar tu fecha."; }
+document.querySelectorAll(".ctAmt").forEach(e=>e.textContent=money2(ct));
 document.querySelectorAll(".method[data-m]").forEach(b=>b.addEventListener("click",()=>{state.method=b.dataset.m; $("#paid").checked=false; update();}));
 document.querySelectorAll("#dist .method").forEach(b=>b.addEventListener("click",()=>{state.dist=b.dataset.d; update();}));
 document.querySelectorAll("#places .method").forEach(b=>b.addEventListener("click",()=>{state.place=b.dataset.p; update(); if(state.place==="casa") $("#faddr").focus();}));
 
+
+/* pago con tarjeta (Stripe) */
+let payBusy=false;
+const FIELD_IDS=["fname","fphone","femail","fpeople","fnotes","faddr","fapt","fcity","fzip","faccess"];
+$("#cardTerms").addEventListener("change",update);
+$("#stripeBtn").addEventListener("click",async()=>{
+  const f=formData();
+  const body={pkg:state.pkg,date:state.date,time:state.time,place:state.place,dist:state.dist,
+    name:f.name,phone:f.phone,email:f.email,people:f.people,notes:f.notes,addr:f.addr,apt:f.apt,city:f.city,zip:f.zip,access:f.access};
+  try{ sessionStorage.setItem("navidad-draft",JSON.stringify({state, fields:Object.fromEntries(FIELD_IDS.map(id=>[id,$("#"+id).value]))})); }catch(e){}
+  payBusy=true; $("#stripeErr").textContent=""; $("#stripeBtn").textContent="Abriendo el pago seguro…"; update();
+  try{
+    const r=await fetch(CONFIG.checkoutUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.url) throw new Error(d.error||"No pudimos abrir el pago.");
+    location.href=d.url;
+  }catch(e){
+    payBusy=false; $("#stripeBtn").innerHTML='Pagar <span class="ctAmt">'+money2(ct)+'</span> con tarjeta';
+    $("#stripeErr").textContent=e.message+" Si sigue fallando, paga por Zelle o escríbenos al 786 278 7684."; update();
+  }
+});
+
+function restoreDraft(){
+  try{
+    const d=JSON.parse(sessionStorage.getItem("navidad-draft")||"null"); if(!d) return;
+    Object.assign(state,d.state||{}); renderPeople();
+    for(const [id,v] of Object.entries(d.fields||{})){ const el=$("#"+id); if(el) el.value=v; }
+  }catch(e){}
+}
+
+function showVerified(v){
+  const b=v.booking||{}, P=PACKAGES.find(x=>x.id===b.pkg);
+  const total=Number(b.total)||0, rest=total-CONFIG.deposit;
+  ["s1","s2","s3","s4"].forEach(id=>$("#"+id).hidden=true); $("#bar").hidden=true;
+  const sec=$("#verified"); sec.hidden=false;
+  $("#vMsg").innerHTML="Recibimos tu depósito de <b>"+money2(v.amount)+"</b>. Referencia de Stripe: <b>"+v.reference+"</b>. Te llega el recibo a "+(b.email||"tu correo")+".";
+  $("#vRecap").innerHTML=`<dt>Paquete</dt><dd>${P?P.name:b.pkg}</dd><dt>Fecha</dt><dd>${niceDate(b.date)}</dd><dt>Hora</dt><dd>${b.time}</dd>
+    <dt>Lugar</dt><dd>${b.place==="casa"?"En tu casa":"En el estudio"}</dd><dt>Total</dt><dd>${money(total)}</dd>
+    <dt class="due">Depósito pagado</dt><dd class="due deposit">${money2(v.amount)}</dd><dt>El día de la sesión</dt><dd>${money(rest)}</dd>`;
+  const msg=["Hola Alca Producciones, ya pagué mi depósito con tarjeta 🎄","",
+    "Paquete: "+(P?P.name:b.pkg),"Fecha: "+niceDate(b.date),"Hora: "+b.time,
+    "Lugar: "+(b.place==="casa"?"En mi casa — "+b.address+(b.dist==="lejos"?" — más de 10 millas (traslado $"+CONFIG.travelFee+")":" — hasta 10 millas"):"En el estudio"),
+    "Personas: "+b.people,"","Nombre: "+b.name,"Teléfono: "+b.phone,"Correo: "+b.email,b.notes?"Notas: "+b.notes:null,"",
+    "Depósito pagado: "+money2(v.amount)+" (Stripe, verificado)","Referencia: "+v.reference].filter(x=>x!==null).join("\n");
+  const a=$("#vWa"); a.href="https://wa.me/"+CONFIG.whatsapp+"?text="+encodeURIComponent(msg); a.hidden=false;
+  $("#vHelp").innerHTML="Toca el botón para mandarnos tu reserva por WhatsApp y te confirmamos la sesión. Si WhatsApp no abre, escríbenos al <b>786 278 7684</b> con tu referencia.";
+  try{ sessionStorage.removeItem("navidad-draft"); }catch(e){}
+  sec.scrollIntoView({block:"start"});
+}
+
+async function handleReturn(){
+  const q=new URLSearchParams(location.search);
+  if(q.get("pago")==="cancelado"){
+    restoreDraft(); renderMonths(); renderCal(); renderSlots(); renderPkgs(); update();
+    state.method="card"; update();
+    $("#stripeErr").textContent="El pago no se completó. Tus datos siguen aquí; puedes intentarlo de nuevo o pagar por Zelle.";
+    $("#s4").scrollIntoView({block:"start"});
+    history.replaceState(null,"",location.pathname);
+    return;
+  }
+  const sid=q.get("session_id"); if(q.get("pago")!=="ok"||!sid) return;
+  const sec=$("#verified"); sec.hidden=false; $("#vTitle").textContent="Verificando tu pago…"; $("#vMsg").textContent="Un momento, estamos confirmando tu pago con Stripe.";
+  sec.scrollIntoView({block:"start"});
+  for(let i=0;i<4;i++){
+    try{
+      const r=await fetch("/api/verify?session_id="+encodeURIComponent(sid)); const v=await r.json();
+      if(v.paid){ $("#vTitle").textContent="Pago verificado"; showVerified(v); return; }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r,2000));
+  }
+  $("#vTitle").textContent="No pudimos verificar el pago";
+  $("#vMsg").innerHTML="Si se te cobró, escríbenos al <b>786 278 7684</b> y lo revisamos. Si no, vuelve a intentarlo.";
+}
+
 renderPkgs(); renderPeople(); renderMonths(); renderCal(); update();
+handleReturn();
 </script>
 
 </body>
