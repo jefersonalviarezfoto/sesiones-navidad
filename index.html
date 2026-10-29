@@ -442,7 +442,7 @@ function update(){
       <dt>Fecha</dt><dd>${state.date?niceDate(state.date):"—"}</dd>
       <dt>Hora</dt><dd>${state.time||"—"}</dd>
       <dt>Lugar</dt><dd>${state.place==="casa"?"En tu casa":"En el estudio"}</dd>
-      ${fee?`<dt>Paquete</dt><dd>${money(p.price)}</dd><dt>Traslado (+10 millas)</dt><dd>${money(fee)}</dd>`:""}
+      ${fee?`<dt>Precio del paquete</dt><dd>${money(p.price)}</dd><dt>Traslado (+10 millas)</dt><dd>${money(fee)}</dd>`:""}
       <dt>Total</dt><dd>${money(total)}</dd>
       <dt class="due">Depósito hoy${state.method==="card"?" (tarjeta)":" (Zelle)"}</dt><dd class="due deposit">${money2(depositNow())}</dd>
       <dt>El día de la sesión</dt><dd>${money(rest)}</dd>`;
