@@ -212,7 +212,15 @@ html{scroll-behavior:smooth}
       <div class="sub">¿Dónde quieres tu sesión?</div>
       <div class="methods" id="places">
         <button type="button" class="method" data-p="estudio" aria-pressed="true"><span class="mname">En nuestro estudio</span><span class="mnote">Set navideño ya montado. Te enviamos la dirección al confirmar.</span></button>
-        <button type="button" class="method" data-p="casa" aria-pressed="false"><span class="mname">En tu casa</span><span class="mnote">Vamos con nuestro equipo a tu hogar.</span></button>
+        <button type="button" class="method" data-p="casa" aria-pressed="false"><span class="mname">En tu casa</span><span class="mnote">Vamos con nuestro equipo a tu hogar. Más de 10 millas de Miami: +$75.</span></button>
+      </div>
+      <div id="distWrap" hidden>
+        <div class="sub">¿A qué distancia de Miami está tu casa?</div>
+        <div class="methods" id="dist" style="margin-top:8px">
+          <button type="button" class="method" data-d="cerca" aria-pressed="true"><span class="mname">Hasta 10 millas</span><span class="mnote">Sin cargo de traslado</span></button>
+          <button type="button" class="method" data-d="lejos" aria-pressed="false"><span class="mname">Más de 10 millas</span><span class="mnote">Cargo de traslado: $75</span></button>
+        </div>
+        <p class="fine" style="margin:6px 0 0">Confirmamos la distancia con tu dirección antes de la sesión.</p>
       </div>
       <div id="addrWrap" class="grid2" hidden>
         <div class="field" style="grid-column:1/-1"><label for="faddr">Dirección (calle y número)<span class="req">*</span></label><input id="faddr" required autocomplete="address-line1" placeholder="Ej. 1234 NW 7th St"><span class="msg" id="m-faddr"></span></div>
@@ -276,6 +284,7 @@ const CONFIG = {
   whatsapp: "17862787684",          // número que recibe las reservas
   cardPaymentLink: "https://connect.intuit.com/pay/maralycabanmkt/scs-v1-cffd826e8d2a49b3b774e6df9131b2ac33a0b14f36244f659aa52919dcd973782f8437c825514b568cb94e8a7f5c797c-0?locale=EN_US&cta=paylinkbuybutton",              // pega aquí tu link de Square / Stripe / PayPal para $50 (vacío = se oculta)
   deposit: 50,
+  travelFee: 75,                    // sesiones en casa a más de 10 millas de Miami
   zelleEmail: "pagosalcagroup@gmail.com",
   zelleConcept: "Christmass2026",
   cardFeePct: 3.5,                  // recargo por pagar con tarjeta
@@ -294,7 +303,7 @@ const PACKAGES = [
 /* ====================================== */
 
 const $ = s => document.querySelector(s);
-const state = {pkg:null, date:null, time:null, month:null, method:"zelle", place:"estudio"};
+const state = {pkg:null, date:null, time:null, month:null, method:"zelle", place:"estudio", dist:"cerca"};
 const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const DOWS = ["dom","lun","mar","mié","jue","vie","sáb"];
 const DOW_LONG = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
@@ -314,6 +323,7 @@ function isFull(d){
 }
 function niceDate(s){ const d=parse(s); return DOW_LONG[d.getDay()]+" "+d.getDate()+" de "+MONTHS[d.getMonth()]; }
 const money = n => "$"+n;
+const travelFee = () => (state.place==="casa" && state.dist==="lejos") ? CONFIG.travelFee : 0;
 const money2 = n => "$"+n.toFixed(2);
 const cardTotal = () => Math.round(CONFIG.deposit*(1+CONFIG.cardFeePct/100)*100)/100;
 const depositNow = () => state.method==="card" ? cardTotal() : CONFIG.deposit;
@@ -424,13 +434,16 @@ function update(){
 
   // recap
   if(p){
-    const rest=p.price-CONFIG.deposit;
+    const fee = travelFee();
+    const total = p.price + fee;
+    const rest = total - CONFIG.deposit;
     $("#recap").innerHTML=`
       <dt>Paquete</dt><dd>${p.name}</dd>
       <dt>Fecha</dt><dd>${state.date?niceDate(state.date):"—"}</dd>
       <dt>Hora</dt><dd>${state.time||"—"}</dd>
       <dt>Lugar</dt><dd>${state.place==="casa"?"En tu casa":"En el estudio"}</dd>
-      <dt>Total</dt><dd>${money(p.price)}</dd>
+      ${fee?`<dt>Paquete</dt><dd>${money(p.price)}</dd><dt>Traslado (+10 millas)</dt><dd>${money(fee)}</dd>`:""}
+      <dt>Total</dt><dd>${money(total)}</dd>
       <dt class="due">Depósito hoy${state.method==="card"?" (tarjeta)":" (Zelle)"}</dt><dd class="due deposit">${money2(depositNow())}</dd>
       <dt>El día de la sesión</dt><dd>${money(rest)}</dd>`;
   }
@@ -439,6 +452,8 @@ function update(){
   // place
   document.querySelectorAll("#places .method").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.p===state.place)));
   $("#addrWrap").hidden = state.place!=="casa";
+  $("#distWrap").hidden = state.place!=="casa";
+  document.querySelectorAll("#dist .method").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.d===state.dist)));
 
   // payment method
   const card = state.method==="card";
@@ -461,7 +476,7 @@ function update(){
       "Paquete: "+p.name+" ("+money(p.price)+")",
       "Fecha: "+niceDate(state.date),
       "Hora: "+state.time,
-      "Lugar: "+(state.place==="casa" ? "En mi casa — "+f.addr+(f.apt?", "+f.apt:"")+", "+f.city+", FL "+f.zip+(f.access?" ("+f.access+")":"") : "En el estudio"),
+      "Lugar: "+(state.place==="casa" ? "En mi casa — "+f.addr+(f.apt?", "+f.apt:"")+", "+f.city+", FL "+f.zip+(f.access?" ("+f.access+")":"")+(state.dist==="lejos"?" — más de 10 millas (traslado $"+CONFIG.travelFee+")":" — hasta 10 millas") : "En el estudio"),
       "Personas: "+f.people,
       "",
       "Nombre: "+f.name,
@@ -508,6 +523,7 @@ $("#amtCard").textContent=money2(ct); $("#feeNote").textContent="Incluye "+CONFI
 $("#feeLine").textContent="Depósito "+money2(CONFIG.deposit)+" + recargo por tarjeta "+CONFIG.cardFeePct+"% ("+money2(fee)+") = "+money2(ct);
 if(CONFIG.cardPaymentLink){ const c=$("#cardpay"); c.href=CONFIG.cardPaymentLink; c.innerHTML="<span>Reservar ahora</span><small style=\"font-family:var(--f-body);font-weight:500;font-size:13px;opacity:.9\">Pagar "+money2(ct)+" con tarjeta en QuickBooks</small>"; c.hidden=false; $("#cardHow").textContent="Se abre el pago seguro en otra pestaña. Cuando termines, vuelve aquí para confirmar tu fecha."; }
 document.querySelectorAll(".method[data-m]").forEach(b=>b.addEventListener("click",()=>{state.method=b.dataset.m; $("#paid").checked=false; update();}));
+document.querySelectorAll("#dist .method").forEach(b=>b.addEventListener("click",()=>{state.dist=b.dataset.d; update();}));
 document.querySelectorAll("#places .method").forEach(b=>b.addEventListener("click",()=>{state.place=b.dataset.p; update(); if(state.place==="casa") $("#faddr").focus();}));
 
 renderPkgs(); renderPeople(); renderMonths(); renderCal(); update();
