@@ -1,0 +1,19 @@
+# Sesiones de Navidad · Alca Producciones (hosting con Apache / cPanel)
+Options -Indexes
+RewriteEngine On
+
+# Forzar HTTPS
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# /api/checkout y /api/verify → archivos PHP
+RewriteRule ^api/(checkout|verify)/?$ api/$1.php [L,QSA]
+
+# Bloquear acceso directo a la librería interna
+RewriteRule ^api/_lib\.php$ - [F,L]
+
+# URLs limpias: /terminos → terminos.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^([a-z0-9-]+)/?$ $1.html [L]
